@@ -1,6 +1,7 @@
 import axios from "axios";
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
+import API_BASE_URL from "./config";
 
 export default function FormPage() {
   const [form, setForm] = useState({ name: "", email: "", message: "" });
@@ -10,7 +11,7 @@ export default function FormPage() {
     e.preventDefault();
     try {
       console.log("📤 Submitting form:", form);
-      const response = await axios.post("/api/form", form, {
+      const response = await axios.post(`${API_BASE_URL}/api/form`, form, {
         headers: {
           "Content-Type": "application/json"
         }

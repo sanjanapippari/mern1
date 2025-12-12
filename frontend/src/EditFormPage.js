@@ -1,6 +1,7 @@
 import axios from "axios";
 import { useState, useEffect } from "react";
 import { useNavigate, useParams } from "react-router-dom";
+import API_BASE_URL from "./config";
 
 export default function EditFormPage() {
   const { id } = useParams();
@@ -13,7 +14,7 @@ export default function EditFormPage() {
     const fetchForm = async () => {
       try {
         console.log("📥 Fetching form with ID:", id);
-        const response = await axios.get(`/api/form/${id}`);
+        const response = await axios.get(`${API_BASE_URL}/api/form/${id}`);
         console.log("✅ Form fetched:", response.data);
         setForm({
           name: response.data.name || "",
@@ -39,7 +40,7 @@ export default function EditFormPage() {
     e.preventDefault();
     try {
       console.log("📤 Updating form:", form);
-      const response = await axios.put(`/api/form/${id}`, form, {
+      const response = await axios.put(`${API_BASE_URL}/api/form/${id}`, form, {
         headers: {
           "Content-Type": "application/json"
         }

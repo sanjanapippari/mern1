@@ -1,6 +1,7 @@
 import axios from "axios";
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
+import API_BASE_URL from "./config";
 
 export default function ResultPage() {
   const [data, setData] = useState([]);
@@ -8,7 +9,7 @@ export default function ResultPage() {
 
   // Fetch all forms
   const fetchForms = () => {
-    axios.get("/api/form")
+    axios.get(`${API_BASE_URL}/api/form`)
       .then(res => {
         console.log("✅ Fetched submissions:", res.data);
         setData(res.data);
@@ -32,7 +33,7 @@ export default function ResultPage() {
 
     try {
       console.log("🗑️ Deleting form with ID:", id);
-      await axios.delete(`/api/form/${id}`);
+      await axios.delete(`${API_BASE_URL}/api/form/${id}`);
       console.log("✅ Form deleted successfully");
       alert("Form deleted successfully!");
       // Refresh the list
