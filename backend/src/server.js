@@ -20,27 +20,78 @@ app.use(express.json());
 app.use(bodyParser.json());
 
 // MongoDB Connection (For Render deployment)
-const MONGO_URI = process.env.MONGO_URI || process.env.MONGODB_URI || "mongodb://127.0.0.1:27017/mernform";
+const MONGO_URI = process.env.MONGO_URI || process.env.MONGODB_URI;
 
-if (!process.env.MONGO_URI && !process.env.MONGODB_URI) {
-  console.warn("⚠️  WARNING: MONGO_URI environment variable not set. Using default local connection.");
-  console.warn("⚠️  For production, set MONGO_URI in Render dashboard → Environment tab");
+if (!MONGO_URI) {
+  console.error("❌ CRITICAL: MONGO_URI environment variable is not set!");
+  console.error("📝 To fix this:");
+  console.error("   1. Go to Render dashboard → Your service → Environment tab");
+  console.error("   2. Click 'Add Environment Variable'");
+  console.error("   3. Key: MONGO_URI");
+  console.error("   4. Value: Your MongoDB Atlas connection string");
+  console.error("   5. Example: mongodb+srv://user:pass@cluster.mongodb.net/dbname");
+  console.error("");
+  console.error("⚠️  Server will start but database operations will fail until MONGO_URI is set.");
+} else {
+  console.log("🔗 Connecting to MongoDB...");
+  console.log(`📍 URI: ${MONGO_URI.replace(/\/\/([^:]+):([^@]+)@/, '//***:***@')}`); // Hide credentials in logs
 }
 
-mongoose
-  .connect(MONGO_URI, {
-    serverSelectionTimeoutMS: 10000, // Increase timeout for cloud connections
-    socketTimeoutMS: 45000,
-  })
-  .then(() => {
+// Connect to MongoDB with retry logic
+const connectDB = async () => {
+  if (!MONGO_URI) {
+    console.warn("⚠️  Skipping MongoDB connection - MONGO_URI not set");
+    return;
+  }
+
+  try {
+    await mongoose.connect(MONGO_URI, {
+      serverSelectionTimeoutMS: 15000, // 15 seconds for cloud connections
+      socketTimeoutMS: 45000,
+      maxPoolSize: 10,
+    });
+    
     console.log("✅ MongoDB Connected Successfully");
     console.log(`📊 Database: ${mongoose.connection.name}`);
-  })
-  .catch((err) => {
-    console.error("❌ MongoDB Connection Error:", err.message);
-    console.error("💡 Make sure MONGO_URI is set in Render environment variables");
-    // Don't exit - let the server start even if DB fails (for health checks)
-  });
+    console.log(`🌐 Host: ${mongoose.connection.host}`);
+    
+    // Handle connection events
+    mongoose.connection.on('error', (err) => {
+      console.error('❌ MongoDB connection error:', err.message);
+    });
+    
+    mongoose.connection.on('disconnected', () => {
+      console.warn('⚠️  MongoDB disconnected. Attempting to reconnect...');
+    });
+    
+    mongoose.connection.on('reconnected', () => {
+      console.log('✅ MongoDB reconnected');
+    });
+    
+  } catch (err) {
+    console.error("❌ MongoDB Connection Failed:");
+    console.error(`   Error: ${err.message}`);
+    
+    if (err.message.includes('ECONNREFUSED')) {
+      console.error("   💡 This usually means:");
+      console.error("      - MONGO_URI is pointing to localhost (127.0.0.1)");
+      console.error("      - You need to use MongoDB Atlas connection string");
+      console.error("      - Format: mongodb+srv://user:pass@cluster.mongodb.net/dbname");
+    } else if (err.message.includes('authentication failed')) {
+      console.error("   💡 Check your MongoDB username and password");
+    } else if (err.message.includes('timeout')) {
+      console.error("   💡 Check your network access in MongoDB Atlas");
+      console.error("      - Go to Network Access → Add IP: 0.0.0.0/0");
+    }
+    
+    console.error("");
+    console.error("⚠️  Server will continue running, but API endpoints will fail.");
+    console.error("   Fix MONGO_URI and restart the service.");
+  }
+};
+
+// Connect to database
+connectDB();
 
 // Request logging (optional)
 app.use((req, res, next) => {
@@ -48,12 +99,57 @@ app.use((req, res, next) => {
   next();
 });
 
+// Database connection check middleware (for API routes)
+app.use("/api", (req, res, next) => {
+  if (mongoose.connection.readyState !== 1) {
+    return res.status(503).json({
+      error: "Database not connected",
+      message: "MongoDB connection is not available. Please check MONGO_URI environment variable.",
+      readyState: mongoose.connection.readyState,
+      states: {
+        0: "disconnected",
+        1: "connected",
+        2: "connecting",
+        3: "disconnecting"
+      }
+    });
+  }
+  next();
+});
+
 // Health check (Render pings this)
 app.get("/", (req, res) => {
+  const dbState = mongoose.connection.readyState;
+  const dbStates = {
+    0: "disconnected",
+    1: "connected",
+    2: "connecting",
+    3: "disconnecting"
+  };
+  
   res.json({
-    message: "Backend Running Successfully 🚀",
-    MongoDB: mongoose.connection.readyState === 1 ? "Connected" : "Disconnected",
-    timestamp: new Date(),
+    status: "running",
+    message: "Backend API is running 🚀",
+    timestamp: new Date().toISOString(),
+    database: {
+      status: dbStates[dbState] || "unknown",
+      readyState: dbState,
+      connected: dbState === 1,
+      name: mongoose.connection.name || "N/A",
+      host: mongoose.connection.host || "N/A",
+      mongoUriSet: !!MONGO_URI
+    },
+    endpoints: {
+      health: "GET /",
+      api: "GET /api",
+      forms: {
+        getAll: "GET /api/form",
+        create: "POST /api/form",
+        getOne: "GET /api/form/:id",
+        update: "PUT /api/form/:id",
+        delete: "DELETE /api/form/:id"
+      }
+    }
   });
 });
 
