@@ -20,16 +20,27 @@ app.use(express.json());
 app.use(bodyParser.json());
 
 // MongoDB Connection (For Render deployment)
-const MONGO_URI = process.env.MONGO_URI || "mongodb://127.0.0.1:27017/mernform";
+const MONGO_URI = process.env.MONGO_URI || process.env.MONGODB_URI || "mongodb://127.0.0.1:27017/mernform";
+
+if (!process.env.MONGO_URI && !process.env.MONGODB_URI) {
+  console.warn("⚠️  WARNING: MONGO_URI environment variable not set. Using default local connection.");
+  console.warn("⚠️  For production, set MONGO_URI in Render dashboard → Environment tab");
+}
 
 mongoose
   .connect(MONGO_URI, {
-    useNewUrlParser: true,
-    useUnifiedTopology: true,
-    serverSelectionTimeoutMS: 5000,
+    serverSelectionTimeoutMS: 10000, // Increase timeout for cloud connections
+    socketTimeoutMS: 45000,
   })
-  .then(() => console.log("✅ MongoDB Connected Successfully"))
-  .catch((err) => console.error("❌ MongoDB Connection Error:", err));
+  .then(() => {
+    console.log("✅ MongoDB Connected Successfully");
+    console.log(`📊 Database: ${mongoose.connection.name}`);
+  })
+  .catch((err) => {
+    console.error("❌ MongoDB Connection Error:", err.message);
+    console.error("💡 Make sure MONGO_URI is set in Render environment variables");
+    // Don't exit - let the server start even if DB fails (for health checks)
+  });
 
 // Request logging (optional)
 app.use((req, res, next) => {
