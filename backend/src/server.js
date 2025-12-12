@@ -20,21 +20,14 @@ app.use(express.json());
 app.use(bodyParser.json());
 
 // MongoDB Connection (For Render deployment)
-const MONGO_URI = process.env.MONGO_URI || process.env.MONGODB_URI;
+const MONGO_URI = process.env.MONGO_URI || process.env.MONGODB_URI || "mongodb+srv://sanjanapippari2005_db_user:71y5e74W36IVOQnD@mern.igqsdwo.mongodb.net/mernform?retryWrites=true&w=majority";
 
-if (!MONGO_URI) {
-  console.error("❌ CRITICAL: MONGO_URI environment variable is not set!");
-  console.error("📝 To fix this:");
-  console.error("   1. Go to Render dashboard → Your service → Environment tab");
-  console.error("   2. Click 'Add Environment Variable'");
-  console.error("   3. Key: MONGO_URI");
-  console.error("   4. Value: Your MongoDB Atlas connection string");
-  console.error("   5. Example: mongodb+srv://user:pass@cluster.mongodb.net/dbname");
-  console.error("");
-  console.error("⚠️  Server will start but database operations will fail until MONGO_URI is set.");
-} else {
-  console.log("🔗 Connecting to MongoDB...");
+if (process.env.MONGO_URI || process.env.MONGODB_URI) {
+  console.log("🔗 Connecting to MongoDB (using environment variable)...");
   console.log(`📍 URI: ${MONGO_URI.replace(/\/\/([^:]+):([^@]+)@/, '//***:***@')}`); // Hide credentials in logs
+} else {
+  console.log("🔗 Connecting to MongoDB (using default connection string)...");
+  console.log("⚠️  Note: Using hardcoded connection string. For production, use environment variables.");
 }
 
 // Connect to MongoDB with retry logic
