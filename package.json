@@ -1,0 +1,16 @@
+{
+  "name": "mern1",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "install-frontend": "cd frontend && npm install",
+    "build": "cd frontend && npm ci && npm run build",
+    "prebuild": "cd frontend && npm install",
+    "start": "cd backend && npm start"
+  },
+  "engines": {
+    "node": ">=18.0.0",
+    "npm": ">=9.0.0"
+  }
+}
+
